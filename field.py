@@ -18,9 +18,9 @@ def init():
     FIELD[1, 1] = 100, 150, 200
     FIELD[2, 1] = 0, 160, 0
 
-    spawn_agent(0, 1, 50, 1, 0, (20, 20), (0, 0), 10)
-    spawn_agent(1, 2, 50, 1, 0, (60, 20), (0, 0), 10)
-    spawn_agent(2, 3, 50, 1, 0, (20, 60), (0, 0), 10)
+    spawn_agent(0, 1, 50, 1, 0, (20, 20), (1, 1), 10)
+    spawn_agent(1, 2, 50, 1, 0, (60, 20), (0.01, 0), 10)
+    spawn_agent(2, 3, 50, 1, 0, (20, 60), (0, 1), 10)
 
 
 def spawn_agent(i=-1, types=None, energy=None, speed=None, timer=None, pos=None, impulse=None, sense=None):
@@ -43,32 +43,51 @@ def spawn_agent(i=-1, types=None, energy=None, speed=None, timer=None, pos=None,
     AGENT_SENSE[i] = 0 if sense is None else sense
 
 
-def pos2cell(pos):
-    return 0, 0
+def pos2cell(field, pos):
+    x = round((pos[0] // FIELD_CELL_SIZE[0] + FIELD_RESOLUTION[0]) % FIELD_RESOLUTION[0])
+    y = round((pos[1] // FIELD_CELL_SIZE[1] + FIELD_RESOLUTION[1]) % FIELD_RESOLUTION[1])
+
+    return field[x, y]
 
 
 def update():
-    update_agents(AGENT_TYPES, AGENT_ENERGY, AGENT_SPEED, AGENT_TIMER, AGENT_POS, AGENT_IMPULSE, AGENT_SENSE)
+    update_agents(AGENT_TYPES, AGENT_ENERGY, AGENT_SPEED, AGENT_TIMER, AGENT_POS, AGENT_IMPULSE, AGENT_SENSE, FIELD)
 
 
-def update_agents(agent_types, agent_energy, agent_speed, agent_timer, agent_pos, agent_impulse, agent_sense):
+def update_agents(agent_types, agent_energy, agent_speed, agent_timer, agent_pos, agent_impulse, agent_sense, field):
     for agent in range(AGENT_LIMIT):
-        update_agent(agent, agent_types, agent_energy, agent_speed, agent_timer, agent_pos, agent_impulse, agent_sense)
+        update_agent(agent, agent_types, agent_energy, agent_speed, agent_timer, agent_pos, agent_impulse, agent_sense,
+                     field)
 
     agent_pos += agent_impulse
+    agent_pos %= FIELD_SIZE
     agent_timer += 1
 
 
-def update_agent(agent, agent_types, agent_energy, agent_speed, agent_timer, agent_pos, agent_impulse, agent_sense):
+def add_food(pos):
+    slice = pos2cell(FIELD, np.array(pos) - FIELD_POS)
+    slice += 1
+
+
+def update_agent(agent, agent_types, agent_energy, agent_speed, agent_timer, agent_pos, agent_impulse, agent_sense,
+                 field):
     if agent_types[agent] == 0:
         return
 
-    if agent_types[agent] == 1:
-        pass
-    if agent_types[agent] == 2:
-        pass
-    if agent_types[agent] == 3:
-        pass
+    if agent_types[agent] == 1:  # Растение
+        food_in_cell = pos2cell(field, agent_pos[agent])[2]
+        if food_in_cell > 1:
+            pos2cell(field, agent_pos[agent])[2] -= 1
+
+    if agent_types[agent] == 2:  # Животное
+        food_in_cell = pos2cell(field, agent_pos[agent])[1]
+        if food_in_cell > 1:
+            pos2cell(field, agent_pos[agent])[1] -= 1
+
+    if agent_types[agent] == 3:  # Гриб
+        food_in_cell = pos2cell(field, agent_pos[agent])[0]
+        if food_in_cell > 1:
+            pos2cell(field, agent_pos[agent])[0] -= 1
 
 
 def duple(parent, agent_types, agent_energy, agent_speed, agent_timer, agent_pos, agent_impulse, agent_sense):
