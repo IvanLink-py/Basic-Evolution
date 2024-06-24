@@ -1,0 +1,22 @@
+import numpy as np
+
+WINDOW_SIZE = (622, 622)
+
+FIELD_SIZE = np.array((512, 512), dtype=np.int32)
+FIELD_POS = np.array((50, 50), dtype=np.uint8)
+
+FIELD_RESOLUTION = (32, 32)
+
+FIELD_CELL_SIZE = (
+    round(FIELD_SIZE[0] / FIELD_RESOLUTION[0]),
+    round(FIELD_SIZE[1] / FIELD_RESOLUTION[1])
+)
+AGENT_DRAW_SIZE = 6
+
+AGENT_LIMIT = 500
+
+AGENT_MUTATION = 1
+
+AGENT_LIFE_COST = 1
+AGENT_MAX_ENERGY = 100
+AGENT_DUPLE_COST = 10
