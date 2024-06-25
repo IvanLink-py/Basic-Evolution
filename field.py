@@ -1,5 +1,5 @@
 import random
-
+import plot
 import pygame
 import numpy as np
 import numba
@@ -17,10 +17,16 @@ AGENT_DIRECTION = np.zeros(AGENT_LIMIT, dtype=np.float32)  # Поворот аг
 AGENT_IMPULSE = np.zeros((AGENT_LIMIT, 2), dtype=np.float32)  # Текущая скорость агента
 AGENT_SENSE = np.zeros(AGENT_LIMIT, dtype=np.uint8)  # Чувствительность агента к еде
 
+HISTORY_AGENT_COUNT = np.zeros((HISTORY_CHUNK_SIZE, 3), dtype=np.int32)
+HISTORY_FIELD_ENERGY = np.zeros((HISTORY_CHUNK_SIZE, 3), dtype=np.float32)
+HISTORY_AGENT_ENERGY = np.zeros((HISTORY_CHUNK_SIZE, 3), dtype=np.float32)
+
 pygame.font.init()
 FONT_1 = pygame.font.SysFont('arial', 10)
 
 DEBUG_RENDER = False
+AGENT_RENDER = False
+
 
 def init():
     # FIELD[10:12, :, 0] = 50
@@ -84,14 +90,41 @@ def add_food(pos):
     x = round(((pos[0] - FIELD_POS[0]) // FIELD_CELL_SIZE[0] + FIELD_RESOLUTION[0]) % FIELD_RESOLUTION[0])
     y = round(((pos[1] - FIELD_POS[1]) // FIELD_CELL_SIZE[1] + FIELD_RESOLUTION[1]) % FIELD_RESOLUTION[1])
 
-    FIELD[x, y] += 5
+    FIELD[x-3:x+3, y-3:y+3] += 5
 
 
 def update():
+    global FRAME
     update_agents(AGENT_TYPES, AGENT_ENERGY, AGENT_SPEED, AGENT_TIMER, AGENT_POS, AGENT_DIRECTION, AGENT_IMPULSE,
                   AGENT_SENSE, FIELD, AGENT_LIMIT, AGENT_SPEED_MODIFIER, FIELD_CELL_SIZE, AGENT_SENSE_RADIUS,
                   AGENT_SENSE_MODIFIER, FIELD_RESOLUTION, AGENT_MAX_ENERGY,
                   AGENT_CONSUMING, AGENT_LIFE_COST, AGENT_DUPLE_TIMER, AGENT_DUPLE_COST, AGENT_PRODUCING)
+
+    if FRAME % HISTORY_CHUNK_SIZE == HISTORY_CHUNK_SIZE - 1:
+        HISTORY_AGENT_COUNT.resize((HISTORY_AGENT_COUNT.shape[0] + HISTORY_CHUNK_SIZE, 3))
+        HISTORY_FIELD_ENERGY.resize((HISTORY_FIELD_ENERGY.shape[0] + HISTORY_CHUNK_SIZE, 3))
+        HISTORY_AGENT_ENERGY.resize((HISTORY_AGENT_ENERGY.shape[0] + HISTORY_CHUNK_SIZE, 3))
+
+    collect_history(FRAME, FIELD, HISTORY_CHUNK_SIZE, HISTORY_AGENT_COUNT, AGENT_TYPES, AGENT_ENERGY, AGENT_LIMIT, HISTORY_FIELD_ENERGY, HISTORY_AGENT_ENERGY)
+    HISTORY_FIELD_ENERGY[FRAME] = FIELD.sum((0, 1))
+
+
+    FRAME += 1
+
+
+@numba.njit()
+def collect_history(frame, field, history_chunk_size, history_agent_count, agent_types, agent_energy, agent_limit, history_field_energy, history_agent_energy):
+    for agent in range(agent_limit):
+        if agent_types[agent] == 0:
+            history_agent_count[frame, 0] += 1
+            history_agent_energy[frame, 0] += agent_energy[agent]
+        elif agent_types[agent] == 1:
+            history_agent_count[frame, 1] += 1
+            history_agent_energy[frame, 1] += agent_energy[agent]
+        elif agent_types[agent] == 2:
+            history_agent_count[frame, 2] += 1
+            history_agent_energy[frame, 2] += agent_energy[agent]
+
 
 
 @numba.njit()
@@ -220,13 +253,14 @@ def kill(agent, agent_types):
 
 def render(screen):
     render_field(screen)
-    render_agents(screen)
+    if AGENT_RENDER:
+        render_agents(screen)
     render_ui(screen)
 
 
 def draw_field(draw_field):
     draw_field[:] = FIELD
-    f_max = max(200, FIELD.max())
+    f_max = max(100, FIELD.max())
     draw_field *= 255 / f_max
 
 
@@ -262,12 +296,18 @@ def render_agent(screen, agent):
     if DEBUG_RENDER:
         energy_txt = FONT_1.render(str(round(AGENT_ENERGY[agent])), 1, (255, 255, 255))
         screen.blit(energy_txt, (FIELD_POS + AGENT_POS[agent]).tolist())
-        pygame.draw.line(screen, (255, 255, 255), (FIELD_POS + AGENT_POS[agent]).tolist(), (FIELD_POS + AGENT_POS[agent] + (
-            np.cos(AGENT_DIRECTION[agent]) * DISPLAY_DIRECTION_LENGHT,
-            -np.sin(AGENT_DIRECTION[agent]) * DISPLAY_DIRECTION_LENGHT)).tolist())
+        pygame.draw.line(screen, (255, 255, 255), (FIELD_POS + AGENT_POS[agent]).tolist(),
+                         (FIELD_POS + AGENT_POS[agent] + (
+                             np.cos(AGENT_DIRECTION[agent]) * DISPLAY_DIRECTION_LENGHT,
+                             -np.sin(AGENT_DIRECTION[agent]) * DISPLAY_DIRECTION_LENGHT)).tolist())
 
-        FIELD_POS + AGENT_POS + (np.cos(AGENT_DIRECTION[agent]) * FIELD_CELL_SIZE[0],np.sin(AGENT_DIRECTION[agent]) * FIELD_CELL_SIZE[1])
+        FIELD_POS + AGENT_POS + (
+            np.cos(AGENT_DIRECTION[agent]) * FIELD_CELL_SIZE[0], np.sin(AGENT_DIRECTION[agent]) * FIELD_CELL_SIZE[1])
 
 
 def render_ui(screen):
     pass
+
+
+def plot_history():
+    plot.draw(FRAME, HISTORY_AGENT_COUNT, HISTORY_FIELD_ENERGY, HISTORY_AGENT_ENERGY)
