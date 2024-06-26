@@ -44,19 +44,19 @@ def init():
         spawn_agent(types=0, energy=50, speed=0.5, timer=random.randint(0, AGENT_DUPLE_TIMER[0]),
                     pos=(random.random() * FIELD_SIZE[0], random.random() * FIELD_SIZE[1]),
                     direction=random.random() * np.pi * 2,
-                    impulse=(0, 0), sense=0)
+                    impulse=(0, 0), sense=1)
 
     for i in range(100):
         spawn_agent(types=1, energy=50, speed=0.5, timer=random.randint(0, AGENT_DUPLE_TIMER[1]),
                     pos=(random.random() * FIELD_SIZE[0], random.random() * FIELD_SIZE[1]),
                     direction=random.random() * np.pi * 2,
-                    impulse=(0, 0), sense=0)
+                    impulse=(0, 0), sense=1)
 
     for i in range(100):
         spawn_agent(types=2, energy=50, speed=0.5, timer=random.randint(0, AGENT_DUPLE_TIMER[2]),
                     pos=(random.random() * FIELD_SIZE[0], random.random() * FIELD_SIZE[1]),
                     direction=random.random() * np.pi * 2,
-                    impulse=(0, 0), sense=0)
+                    impulse=(0, 0), sense=1)
 
 
 def spawn_agent(i=-1, types=None, energy=None, speed=None, timer=None, pos=None, direction=None, impulse=None,
@@ -128,11 +128,11 @@ def update():
                   AGENT_LIFE_COST_PER_SENSE, AGENT_LIFE_COST_PER_SPEED)
 
     if FRAME % HISTORY_CHUNK_SIZE == HISTORY_CHUNK_SIZE - 1:
-        HISTORY_AGENT_COUNT.resize((HISTORY_AGENT_COUNT.shape[0] + HISTORY_CHUNK_SIZE, 3))
-        HISTORY_FIELD_ENERGY.resize((HISTORY_FIELD_ENERGY.shape[0] + HISTORY_CHUNK_SIZE, 3))
-        HISTORY_AGENT_ENERGY.resize((HISTORY_AGENT_ENERGY.shape[0] + HISTORY_CHUNK_SIZE, 3))
-        HISTORY_AGENT_SPEED.resize((HISTORY_AGENT_SPEED.shape[0] + HISTORY_CHUNK_SIZE, 3))
-        HISTORY_AGENT_SENSE.resize((HISTORY_AGENT_SENSE.shape[0] + HISTORY_CHUNK_SIZE, 3))
+        HISTORY_AGENT_COUNT.resize((HISTORY_AGENT_COUNT.shape[0] + HISTORY_CHUNK_SIZE, 3), refcheck=False)
+        HISTORY_FIELD_ENERGY.resize((HISTORY_FIELD_ENERGY.shape[0] + HISTORY_CHUNK_SIZE, 3), refcheck=False)
+        HISTORY_AGENT_ENERGY.resize((HISTORY_AGENT_ENERGY.shape[0] + HISTORY_CHUNK_SIZE, 3), refcheck=False)
+        HISTORY_AGENT_SPEED.resize((HISTORY_AGENT_SPEED.shape[0] + HISTORY_CHUNK_SIZE, 3), refcheck=False)
+        HISTORY_AGENT_SENSE.resize((HISTORY_AGENT_SENSE.shape[0] + HISTORY_CHUNK_SIZE, 3), refcheck=False)
 
     collect_history(FRAME, FIELD, HISTORY_CHUNK_SIZE, HISTORY_AGENT_COUNT, AGENT_TYPES, AGENT_ENERGY, AGENT_LIMIT,
                     HISTORY_FIELD_ENERGY, HISTORY_AGENT_ENERGY, HISTORY_AGENT_SPEED, HISTORY_AGENT_SENSE, AGENT_SENSE,
@@ -335,7 +335,7 @@ def render(screen):
 
 def draw_field(draw_field):
     draw_field[:] = FIELD
-    f_max = max(100, FIELD.max())
+    f_max = max(50, FIELD.max())
     draw_field *= 255 / f_max
 
 

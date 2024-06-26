@@ -17,9 +17,9 @@ adding = False
 fps_limiting = False
 clock = pygame.time.Clock()
 
-pygame.draw.rect(screen, (25, 25, 25), ((0,0), WINDOW_SIZE))
-txt = field.FONT_3.render('КОМПИЛЯЦИЯ',1, (255, 0, 0))
-screen.blit(txt, (WINDOW_SIZE[0]//2 - txt.get_width() // 2, WINDOW_SIZE[1]//2 - txt.get_height() // 2))
+pygame.draw.rect(screen, (25, 25, 25), ((0, 0), WINDOW_SIZE))
+txt = field.FONT_3.render('КОМПИЛЯЦИЯ', 1, (255, 0, 0))
+screen.blit(txt, (WINDOW_SIZE[0] // 2 - txt.get_width() // 2, WINDOW_SIZE[1] // 2 - txt.get_height() // 2))
 pygame.display.update()
 
 while running:
@@ -63,7 +63,7 @@ while running:
     if fps_limiting:
         clock.tick(FPS_LIMIT)
     t2 = time.time_ns()
-    pygame.display.set_caption(str(round(1 / (t2 - t1), 2)))
+    pygame.display.set_caption(str(round(1e9 / (t2 - t1), 2)))
     FRAME += 1
 
 pygame.quit()
