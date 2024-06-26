@@ -44,19 +44,19 @@ def init():
         spawn_agent(types=0, energy=50, speed=0.5, timer=random.randint(0, AGENT_DUPLE_TIMER[0]),
                     pos=(random.random() * FIELD_SIZE[0], random.random() * FIELD_SIZE[1]),
                     direction=random.random() * np.pi * 2,
-                    impulse=(0, 0), sense=1)
+                    impulse=(0, 0), sense=0)
 
     for i in range(100):
         spawn_agent(types=1, energy=50, speed=0.5, timer=random.randint(0, AGENT_DUPLE_TIMER[1]),
                     pos=(random.random() * FIELD_SIZE[0], random.random() * FIELD_SIZE[1]),
                     direction=random.random() * np.pi * 2,
-                    impulse=(0, 0), sense=1)
+                    impulse=(0, 0), sense=0)
 
     for i in range(100):
         spawn_agent(types=2, energy=50, speed=0.5, timer=random.randint(0, AGENT_DUPLE_TIMER[2]),
                     pos=(random.random() * FIELD_SIZE[0], random.random() * FIELD_SIZE[1]),
                     direction=random.random() * np.pi * 2,
-                    impulse=(0, 0), sense=1)
+                    impulse=(0, 0), sense=0)
 
 
 def spawn_agent(i=-1, types=None, energy=None, speed=None, timer=None, pos=None, direction=None, impulse=None,
@@ -104,12 +104,14 @@ def get_light_level(pos):
     # else:
     #     return 2
 
-    if ((pos[0] // 4) % 2 + (pos[1] // 4) % 2) % 2 == 0:
-        return 1.65
-    else:
-        return 0.65
+    # if ((pos[0] // 4) % 2 + (pos[1] // 4) % 2) % 2 == 0:
+    #     return 1.65
+    # else:
+    #     return 0.65
 
     # return max(0, (32 - pos[1]) / 16)
+
+    return 1
 
 
 def add_food(pos):
@@ -125,7 +127,7 @@ def update():
                   AGENT_SENSE, FIELD, AGENT_LIMIT, AGENT_SPEED_MODIFIER, FIELD_CELL_SIZE, AGENT_SENSE_RADIUS,
                   AGENT_SENSE_MODIFIER, FIELD_RESOLUTION, AGENT_MAX_ENERGY,
                   AGENT_CONSUMING, AGENT_LIFE_COST, AGENT_DUPLE_TIMER, AGENT_DUPLE_COST, AGENT_PRODUCING,
-                  AGENT_LIFE_COST_PER_SENSE, AGENT_LIFE_COST_PER_SPEED)
+                  AGENT_LIFE_COST_PER_SENSE, AGENT_LIFE_COST_PER_SPEED, FIELD_REGEN)
 
     if FRAME % HISTORY_CHUNK_SIZE == HISTORY_CHUNK_SIZE - 1:
         HISTORY_AGENT_COUNT.resize((HISTORY_AGENT_COUNT.shape[0] + HISTORY_CHUNK_SIZE, 3), refcheck=False)
@@ -169,7 +171,7 @@ def update_agents(agent_types, agent_energy, agent_speed, agent_timer,
                   agent_pos, agent_direction, agent_impulse, agent_sense, field, agent_limit, agent_speed_modifier,
                   field_cell_size, agent_sense_radius, agent_sense_modifier, field_resolution, agent_max_energy,
                   agent_consuming, agent_life_cost, agent_duple_timer, agent_duple_cost, agent_producing,
-                  agent_life_cost_per_sense, agent_life_cost_per_speed):
+                  agent_life_cost_per_sense, agent_life_cost_per_speed, field_regen):
     for agent in range(agent_limit):
         update_agent(agent, agent_types, agent_energy, agent_speed, agent_timer,
                      agent_pos, agent_direction, agent_impulse, agent_sense, field, agent_limit, agent_speed_modifier,
@@ -182,6 +184,8 @@ def update_agents(agent_types, agent_energy, agent_speed, agent_timer,
     agent_pos %= FIELD_SIZE
     agent_direction += (np.random.random(AGENT_LIMIT) - 0.5) * AGENT_RANDOM_ROTATION
     agent_timer += 1
+
+    field += field_regen
 
 
 @numba.njit()

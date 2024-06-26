@@ -8,7 +8,7 @@ pygame.init()
 field.init()
 
 screen = pygame.display.set_mode(WINDOW_SIZE)
-pygame.display.set_caption("My Game")
+pygame.display.set_caption("КОМПИЛЯЦИЯ")
 FONT_2 = pygame.font.SysFont('roboto', 12)
 
 running = True
@@ -63,7 +63,7 @@ while running:
     if fps_limiting:
         clock.tick(FPS_LIMIT)
     t2 = time.time_ns()
-    pygame.display.set_caption(str(round(1e9 / (t2 - t1), 2)))
+    pygame.display.set_caption(str(FRAME) + ' ' + str(round(1e9 / (t2 - t1), 2)))
     FRAME += 1
 
 pygame.quit()
