@@ -46,7 +46,7 @@ def init():
         spawn_agent(types=0, energy=50, speed=0.0, timer=random.randint(0, AGENT_DUPLE_TIMER[0]),
                     pos=(random.random() * FIELD_SIZE[0], random.random() * FIELD_SIZE[1]),
                     direction=random.random() * np.pi * 2,
-                    impulse=(0, 0), sense=0, duple_distance=25)
+                    impulse=(0, 0), sense=0, duple_distance=15)
 
     for i in range(100):
         spawn_agent(types=1, energy=50, speed=0.5, timer=random.randint(0, AGENT_DUPLE_TIMER[1]),
@@ -85,17 +85,17 @@ def spawn_agent(i=-1, types=None, energy=None, speed=None, timer=None, pos=None,
 
 
 @numba.njit()
-def pos2cell(field, pos, field_cell_size, field_resolution):
-    x = round((pos[0] // field_cell_size[0] + field_resolution[0]) % field_resolution[0])
-    y = round((pos[1] // field_cell_size[1] + field_resolution[1]) % field_resolution[1])
+def pos2cell(field, pos):
+    x = round((pos[0] // FIELD_CELL_SIZE[0] + FIELD_RESOLUTION[0]) % FIELD_RESOLUTION[0])
+    y = round((pos[1] // FIELD_CELL_SIZE[1] + FIELD_RESOLUTION[1]) % FIELD_RESOLUTION[1])
 
     return field[x, y]
 
 
 @numba.njit()
-def pos2cell_coord(pos, field_cell_size, field_resolution):
-    x = round((pos[0] // field_cell_size[0] + field_resolution[0]) % field_resolution[0])
-    y = round((pos[1] // field_cell_size[1] + field_resolution[1]) % field_resolution[1])
+def pos2cell_coord(pos):
+    x = round((pos[0] // FIELD_CELL_SIZE[0] + FIELD_RESOLUTION[0]) % FIELD_RESOLUTION[0])
+    y = round((pos[1] // FIELD_CELL_SIZE[1] + FIELD_RESOLUTION[1]) % FIELD_RESOLUTION[1])
 
     return x, y
 
@@ -127,10 +127,7 @@ def add_food(pos):
 def update():
     global FRAME
     update_agents(AGENT_TYPES, AGENT_ENERGY, AGENT_SPEED, AGENT_TIMER, AGENT_POS, AGENT_DIRECTION, AGENT_IMPULSE,
-                  AGENT_SENSE, FIELD, AGENT_LIMIT, AGENT_SPEED_MODIFIER, FIELD_CELL_SIZE, AGENT_SENSE_RADIUS,
-                  AGENT_SENSE_MODIFIER, FIELD_RESOLUTION, AGENT_MAX_ENERGY,
-                  AGENT_CONSUMING, AGENT_LIFE_COST, AGENT_DUPLE_TIMER, AGENT_DUPLE_COST, AGENT_PRODUCING,
-                  AGENT_LIFE_COST_PER_SENSE, AGENT_LIFE_COST_PER_SPEED, FIELD_REGEN, AGENT_DUPLE_DISTANCE)
+                  AGENT_SENSE, FIELD, AGENT_DUPLE_DISTANCE)
 
     if FRAME % HISTORY_CHUNK_SIZE == HISTORY_CHUNK_SIZE - 1:
         HISTORY_AGENT_COUNT.resize((HISTORY_AGENT_COUNT.shape[0] + HISTORY_CHUNK_SIZE, 3), refcheck=False)
@@ -176,16 +173,10 @@ def collect_history(frame, field, history_chunk_size, history_agent_count, agent
 
 @numba.njit()
 def update_agents(agent_types, agent_energy, agent_speed, agent_timer,
-                  agent_pos, agent_direction, agent_impulse, agent_sense, field, agent_limit, agent_speed_modifier,
-                  field_cell_size, agent_sense_radius, agent_sense_modifier, field_resolution, agent_max_energy,
-                  agent_consuming, agent_life_cost, agent_duple_timer, agent_duple_cost, agent_producing,
-                  agent_life_cost_per_sense, agent_life_cost_per_speed, field_regen, agent_duple_distance):
-    for agent in range(agent_limit):
+                  agent_pos, agent_direction, agent_impulse, agent_sense, field, agent_duple_distance):
+    for agent in range(AGENT_LIMIT):
         update_agent(agent, agent_types, agent_energy, agent_speed, agent_timer,
-                     agent_pos, agent_direction, agent_impulse, agent_sense, field, agent_limit, agent_speed_modifier,
-                     field_cell_size, agent_sense_radius, agent_sense_modifier, field_resolution, agent_max_energy,
-                     agent_consuming, agent_life_cost, agent_duple_timer, agent_duple_cost, agent_producing,
-                     agent_life_cost_per_sense, agent_life_cost_per_speed, agent_duple_distance)
+                     agent_pos, agent_direction, agent_impulse, agent_sense, field, agent_duple_distance)
 
     agent_pos += agent_impulse
     agent_impulse *= FIELD_FRICTION
@@ -193,15 +184,12 @@ def update_agents(agent_types, agent_energy, agent_speed, agent_timer,
     agent_direction += (np.random.random(AGENT_LIMIT) - 0.5) * AGENT_RANDOM_ROTATION
     agent_timer += 1
 
-    field += field_regen
+    field += FIELD_REGEN
 
 
 @numba.njit()
 def update_agent(agent, agent_types, agent_energy, agent_speed, agent_timer,
-                 agent_pos, agent_direction, agent_impulse, agent_sense, field, agent_limit, agent_speed_modifier,
-                 field_cell_size, agent_sense_radius, agent_sense_modifier, field_resolution, agent_max_energy,
-                 agent_consuming, agent_life_cost, agent_duple_timer, agent_duple_cost, agent_producing,
-                 agent_life_cost_per_sense, agent_life_cost_per_speed, agent_duple_distance):
+                 agent_pos, agent_direction, agent_impulse, agent_sense, field, agent_duple_distance):
     if agent_types[agent] == -1:
         return
 
@@ -210,82 +198,79 @@ def update_agent(agent, agent_types, agent_energy, agent_speed, agent_timer,
     type_index = int(agent_types[agent])
 
     if food_index == 2:
-        pos = pos2cell_coord(agent_pos[agent], field_cell_size, field_resolution)
+        pos = pos2cell_coord(agent_pos[agent])
         light = get_light_level(pos)
-        food_in_cell = pos2cell(field, agent_pos[agent], field_cell_size, field_resolution)[food_index]
+        food_in_cell = pos2cell(field, agent_pos[agent])[food_index]
 
-        if agent_energy[agent] < agent_max_energy[type_index]:
-            eated = min(agent_consuming[type_index], food_in_cell)
-            pos2cell(field, agent_pos[agent], field_cell_size, field_resolution)[food_index] -= eated
+        if agent_energy[agent] < AGENT_MAX_ENERGY[type_index]:
+            eated = min(AGENT_CONSUMING[type_index], food_in_cell)
+            pos2cell(field, agent_pos[agent])[food_index] -= eated
             agent_energy[agent] += eated * light
     else:
-        food_in_cell = pos2cell(field, agent_pos[agent], field_cell_size, field_resolution)[food_index]
-        if agent_energy[agent] < agent_max_energy[type_index]:
-            eated = min(agent_consuming[type_index], food_in_cell)
-            pos2cell(field, agent_pos[agent], field_cell_size, field_resolution)[food_index] -= eated
+        food_in_cell = pos2cell(field, agent_pos[agent])[food_index]
+        if agent_energy[agent] < AGENT_MAX_ENERGY[type_index]:
+            eated = min(AGENT_CONSUMING[type_index], food_in_cell)
+            pos2cell(field, agent_pos[agent])[food_index] -= eated
             agent_energy[agent] += eated
 
-    if agent_energy[agent] < agent_life_cost[type_index]:
+    if agent_energy[agent] < AGENT_LIFE_COST[type_index]:
         kill(agent, agent_types)
         return
     #
-    if agent_timer[agent] > agent_duple_timer[type_index]:
-        if agent_energy[agent] > agent_duple_cost[type_index]:
+    if agent_timer[agent] > AGENT_DUPLE_TIMER[type_index]:
+        if agent_energy[agent] > AGENT_DUPLE_COST[type_index]:
             duple(agent, agent_types, agent_energy, agent_speed, agent_timer,
-                  agent_pos, agent_direction, agent_impulse, agent_sense, agent_limit, agent_duple_distance)
+                  agent_pos, agent_direction, agent_impulse, agent_sense, agent_duple_distance)
         agent_timer[agent] = 0
 
-    agent_impulse[agent][0] += np.cos(agent_direction[agent]) * agent_speed[agent] * agent_speed_modifier[type_index]
-    agent_impulse[agent][1] += -np.sin(agent_direction[agent]) * agent_speed[agent] * agent_speed_modifier[type_index]
+    agent_impulse[agent][0] += np.cos(agent_direction[agent]) * agent_speed[agent] * AGENT_SPEED_MODIFIER[type_index]
+    agent_impulse[agent][1] += -np.sin(agent_direction[agent]) * agent_speed[agent] * AGENT_SPEED_MODIFIER[type_index]
 
-    sense(agent, agent_pos, agent_direction, agent_impulse, agent_sense, field, agent_sense_modifier, field_cell_size,
-          field_resolution, food_index)
+    sense(agent, agent_pos, agent_direction, agent_sense, field, food_index)
 
-    life_cost = (agent_life_cost[type_index] +
-                 agent_life_cost_per_speed[type_index] * agent_speed[agent] +
-                 agent_life_cost_per_sense[type_index] * agent_sense[agent])
+    life_cost = (AGENT_LIFE_COST[type_index] +
+                 AGENT_LIFE_COST_PER_SPEED[type_index] * agent_speed[agent] +
+                 AGENT_LIFE_COST_PER_SENSE[type_index] * agent_sense[agent])
 
     agent_energy[agent] -= life_cost
-    pos2cell(field, agent_pos[agent], field_cell_size, field_resolution)[cal_index] += life_cost * agent_producing[
-        type_index]
+    pos2cell(field, agent_pos[agent])[cal_index] += life_cost * AGENT_PRODUCING[type_index]
 
 
 @numba.njit()
-def sense(agent, agent_pos, agent_direction, agent_impulse, agent_sense, field, agent_sense_modifier, field_cell_size,
-          field_resolution, food_index):
-    x = round((agent_pos[agent][0] // field_cell_size[0] + field_resolution[0]) % field_resolution[0])
-    y = round((agent_pos[agent][1] // field_cell_size[1] + field_resolution[1]) % field_resolution[1])
+def sense(agent, agent_pos, agent_direction, agent_sense, field, food_index):
+    x = round((agent_pos[agent][0] // FIELD_CELL_SIZE[0] + FIELD_RESOLUTION[0]) % FIELD_RESOLUTION[0])
+    y = round((agent_pos[agent][1] // FIELD_CELL_SIZE[1] + FIELD_RESOLUTION[1]) % FIELD_RESOLUTION[1])
 
     angle = int(np.floor((agent_direction[agent] + np.pi * (1 / 16)) / (np.pi * 2) * 8) % 8)
 
     if food_index == 2:
         neibors = (
-            field[(x + 1) % field_resolution[0],
-                  (y) % field_resolution[1], food_index] * get_light_level((x + 1, y)),
-            field[(x + 1) % field_resolution[0],
-                  (y - 1) % field_resolution[1], food_index] * get_light_level((x + 1, y - 1)),
-            field[(x) % field_resolution[0],
-                  (y - 1) % field_resolution[1], food_index] * get_light_level((x, y - 1)),
-            field[(x - 1) % field_resolution[0],
-                  (y - 1) % field_resolution[1], food_index] * get_light_level((x - 1, y - 1)),
-            field[(x - 1) % field_resolution[0],
-                  (y) % field_resolution[1], food_index] * get_light_level((x - 1, y)),
-            field[(x - 1) % field_resolution[0],
-                  (y + 1) % field_resolution[1], food_index] * get_light_level((x - 1, y + 1)),
-            field[(x) % field_resolution[0],
-                  (y + 1) % field_resolution[1], food_index] * get_light_level((x, y + 1)),
-            field[(x + 1) % field_resolution[0],
-                  (y + 1) % field_resolution[1], food_index] * get_light_level((x + 1, y + 1)))
+            field[(x + 1) % FIELD_RESOLUTION[0],
+                  (y) % FIELD_RESOLUTION[1], food_index] * get_light_level((x + 1, y)),
+            field[(x + 1) % FIELD_RESOLUTION[0],
+                  (y - 1) % FIELD_RESOLUTION[1], food_index] * get_light_level((x + 1, y - 1)),
+            field[(x) % FIELD_RESOLUTION[0],
+                  (y - 1) % FIELD_RESOLUTION[1], food_index] * get_light_level((x, y - 1)),
+            field[(x - 1) % FIELD_RESOLUTION[0],
+                  (y - 1) % FIELD_RESOLUTION[1], food_index] * get_light_level((x - 1, y - 1)),
+            field[(x - 1) % FIELD_RESOLUTION[0],
+                  (y) % FIELD_RESOLUTION[1], food_index] * get_light_level((x - 1, y)),
+            field[(x - 1) % FIELD_RESOLUTION[0],
+                  (y + 1) % FIELD_RESOLUTION[1], food_index] * get_light_level((x - 1, y + 1)),
+            field[(x) % FIELD_RESOLUTION[0],
+                  (y + 1) % FIELD_RESOLUTION[1], food_index] * get_light_level((x, y + 1)),
+            field[(x + 1) % FIELD_RESOLUTION[0],
+                  (y + 1) % FIELD_RESOLUTION[1], food_index] * get_light_level((x + 1, y + 1)))
     else:
         neibors = (
-            field[(x + 1) % field_resolution[0], (y) % field_resolution[1], food_index],
-            field[(x + 1) % field_resolution[0], (y - 1) % field_resolution[1], food_index],
-            field[(x) % field_resolution[0], (y - 1) % field_resolution[1], food_index],
-            field[(x - 1) % field_resolution[0], (y - 1) % field_resolution[1], food_index],
-            field[(x - 1) % field_resolution[0], (y) % field_resolution[1], food_index],
-            field[(x - 1) % field_resolution[0], (y + 1) % field_resolution[1], food_index],
-            field[(x) % field_resolution[0], (y + 1) % field_resolution[1], food_index],
-            field[(x + 1) % field_resolution[0], (y + 1) % field_resolution[1], food_index])
+            field[(x + 1) % FIELD_RESOLUTION[0], (y) % FIELD_RESOLUTION[1], food_index],
+            field[(x + 1) % FIELD_RESOLUTION[0], (y - 1) % FIELD_RESOLUTION[1], food_index],
+            field[(x) % FIELD_RESOLUTION[0], (y - 1) % FIELD_RESOLUTION[1], food_index],
+            field[(x - 1) % FIELD_RESOLUTION[0], (y - 1) % FIELD_RESOLUTION[1], food_index],
+            field[(x - 1) % FIELD_RESOLUTION[0], (y) % FIELD_RESOLUTION[1], food_index],
+            field[(x - 1) % FIELD_RESOLUTION[0], (y + 1) % FIELD_RESOLUTION[1], food_index],
+            field[(x) % FIELD_RESOLUTION[0], (y + 1) % FIELD_RESOLUTION[1], food_index],
+            field[(x + 1) % FIELD_RESOLUTION[0], (y + 1) % FIELD_RESOLUTION[1], food_index])
 
     front_score = (neibors[(angle + 0) % 8] +
                    neibors[(angle + 1) % 8] +
@@ -309,29 +294,29 @@ def sense(agent, agent_pos, agent_direction, agent_impulse, agent_sense, field, 
         dir_mod = np.float32(1)
 
     if left_score > right_score:
-        agent_direction[agent] += agent_sense_modifier * agent_sense[agent] * dir_mod
+        agent_direction[agent] += AGENT_SENSE_MODIFIER * agent_sense[agent] * dir_mod
 
     elif left_score < right_score:
-        agent_direction[agent] -= agent_sense_modifier * agent_sense[agent] * dir_mod
+        agent_direction[agent] -= AGENT_SENSE_MODIFIER * agent_sense[agent] * dir_mod
 
 
 @numba.njit()
 def duple(parent, agent_types, agent_energy, agent_speed, agent_timer,
-          agent_pos, agent_direction, agent_impulse, agent_sense, agent_limit, agent_duple_distance):
-    for i in range(agent_limit):
+          agent_pos, agent_direction, agent_impulse, agent_sense, agent_duple_distance):
+    for i in range(AGENT_LIMIT):
         if agent_types[i] == -1:
             agent_energy[parent] /= 2
 
             agent_types[i] = agent_types[parent]
             agent_energy[i] = agent_energy[parent]
-            agent_speed[i] = max(0, agent_speed[parent] + (random.random() - 0.5) * 0.5)
+            agent_speed[i] = max(0, agent_speed[parent] + (random.random() - 0.5) * AGENT_MUTATION)
             agent_timer[i] = 0
             agent_pos[i] = agent_pos[parent] + np.array(
                 [np.cos(agent_direction[parent]), -np.sin(agent_direction[parent])]) * agent_duple_distance[parent]
             agent_direction[i] = agent_direction[parent]
             agent_impulse[i] = agent_impulse[parent]
-            agent_sense[i] = max(0, agent_sense[parent] + (random.random() - 0.5) * 0.5)
-            agent_duple_distance[i] = max(0, agent_duple_distance[parent] + (random.random() - 0.5) * 2)
+            agent_sense[i] = max(0, agent_sense[parent] + (random.random() - 0.5) * AGENT_MUTATION)
+            agent_duple_distance[i] = max(0, agent_duple_distance[parent] + (random.random() - 0.5) * AGENT_DUPLE_DISTANCE_MUTATION)
             return
 
 
