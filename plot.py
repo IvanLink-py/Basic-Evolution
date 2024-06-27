@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 from consts import *
+from scipy.signal import savgol_filter
 
 
 def handle(event):
@@ -17,23 +18,22 @@ def on_click(event, func):
 
 def draw(frame, agent_count, field_energy, agent_energy, agent_speed, agent_sense, agent_dist):
     fig, ax = plt.subplots(3, 4, figsize=(18, 9), sharex='row')
-    time_line = np.arange(frame)
 
     ax[0, 0].set_title('Кол-во агентов')
-    ax[0, 0].plot(time_line, agent_count[:frame, :].sum(1) / 3, color='black', label='Всего')
-    ax[0, 0].plot(time_line, agent_count[:frame, 0], color='green', label='Растения')
-    ax[0, 0].plot(time_line, agent_count[:frame, 1], color='red', label='Животные')
-    ax[0, 0].plot(time_line, agent_count[:frame, 2], color='blue', label='Грибы')
+    ax[0, 0].plot(agent_count[:frame, :].sum(1) / 3, color='black', label='Всего')
+    ax[0, 0].plot(agent_count[:frame, 0], color='green', label='Растения')
+    ax[0, 0].plot(agent_count[:frame, 1], color='red', label='Животные')
+    ax[0, 0].plot(agent_count[:frame, 2], color='blue', label='Грибы')
     ax[0, 0].yaxis.set_data_interval(vmin=0, vmax=0, ignore=False)
     ax[0, 0].secondary_yaxis('right', functions=(lambda x: 3 * x, lambda x: x / 3))
     ax[0, 0].legend()
     ax[0, 0].grid(True)
 
     ax[0, 1].set_title('Энергия поля')
-    ax[0, 1].plot(time_line, field_energy[:frame, :].sum(1) / 3, color='black', label='Всего')
-    ax[0, 1].plot(time_line, field_energy[:frame, 0], color='red', label='Органика')
-    ax[0, 1].plot(time_line, field_energy[:frame, 1], color='green', label='Растительность')
-    ax[0, 1].plot(time_line, field_energy[:frame, 2], color='blue', label='Минералы')
+    ax[0, 1].plot(field_energy[:frame, :].sum(1) / 3, color='black', label='Всего')
+    ax[0, 1].plot(field_energy[:frame, 0], color='red', label='Органика')
+    ax[0, 1].plot(field_energy[:frame, 1], color='green', label='Растительность')
+    ax[0, 1].plot(field_energy[:frame, 2], color='blue', label='Минералы')
     ax[0, 1].yaxis.set_data_interval(vmin=0, vmax=0, ignore=False)
     ax[0, 1].secondary_yaxis('right', functions=(lambda x: 3 * x, lambda x: x / 3))
     ax[0, 1].legend()
@@ -42,23 +42,23 @@ def draw(frame, agent_count, field_energy, agent_energy, agent_speed, agent_sens
     ax[0, 2].set_title('Энергия агентов')
     avg_agent_energy = agent_energy[:frame, :].sum(1) / agent_count[:frame, :].sum(1)
     scale = max(min(1, 1 / (agent_energy.max() / avg_agent_energy.max())), np.float32(.00001))
-    ax[0, 2].plot(time_line, agent_energy[:frame, :].sum(1) / 3, color='black', label='Всего')
-    ax[0, 2].plot(time_line, avg_agent_energy / scale, color='black', label='Средняя агента', linestyle='--')
-    ax[0, 2].plot(time_line, agent_energy[:frame, 0], color='green', label='Растения')
-    ax[0, 2].plot(time_line, agent_energy[:frame, 1], color='red', label='Животные')
-    ax[0, 2].plot(time_line, agent_energy[:frame, 2], color='blue', label='Грибы')
+    ax[0, 2].plot(agent_energy[:frame, :].sum(1) / 3, color='black', label='Всего')
+    ax[0, 2].plot(avg_agent_energy / scale, color='black', label='Средняя агента', linestyle='--')
+    ax[0, 2].plot(agent_energy[:frame, 0], color='green', label='Растения')
+    ax[0, 2].plot(agent_energy[:frame, 1], color='red', label='Животные')
+    ax[0, 2].plot(agent_energy[:frame, 2], color='blue', label='Грибы')
     ax[0, 2].yaxis.set_data_interval(vmin=0, vmax=0, ignore=False)
     ax[0, 2].secondary_yaxis('right', functions=(lambda x: scale * x, lambda x: x / scale))
     ax[0, 2].legend()
     ax[0, 2].grid(True)
 
     ax[0, 3].set_title('Энергия системы')
-    ax[0, 3].plot(time_line, field_energy[:frame, 1] + agent_energy[:frame, 0], color='green',
+    ax[0, 3].plot(field_energy[:frame, 1] + agent_energy[:frame, 0], color='green',
                   label='Растения + Растительность')
-    ax[0, 3].plot(time_line, field_energy[:frame, 0] + agent_energy[:frame, 1], color='red',
+    ax[0, 3].plot(field_energy[:frame, 0] + agent_energy[:frame, 1], color='red',
                   label='Животные + Органика')
-    ax[0, 3].plot(time_line, field_energy[:frame, 2] + agent_energy[:frame, 2], color='blue', label='Грибы + Минералы')
-    ax[0, 3].plot(time_line, (field_energy[:frame, :].sum(1) + agent_energy[:frame, :].sum(1)) / 3, color='black',
+    ax[0, 3].plot(field_energy[:frame, 2] + agent_energy[:frame, 2], color='blue', label='Грибы + Минералы')
+    ax[0, 3].plot((field_energy[:frame, :].sum(1) + agent_energy[:frame, :].sum(1)) / 3, color='black',
                   label='Общая')
     ax[0, 3].secondary_yaxis('right', functions=(lambda x: 3 * x, lambda x: x / 3))
     ax[0, 3].yaxis.set_data_interval(vmin=0, vmax=0, ignore=False)
@@ -66,31 +66,31 @@ def draw(frame, agent_count, field_energy, agent_energy, agent_speed, agent_sens
     ax[0, 3].grid(True)
 
     ax[1, 0].set_title('Эволюция агентов (скорость)')
-    ax[1, 0].plot(time_line, agent_speed[:frame, :].sum(1) / agent_count[:frame, :].sum(1), color='black',
+    ax[1, 0].plot(agent_speed[:frame, :].sum(1) / agent_count[:frame, :].sum(1), color='black',
                   label='Всего')
-    ax[1, 0].plot(time_line, agent_speed[:frame, 0] / agent_count[:frame, 0], color='green', label='Растения')
-    ax[1, 0].plot(time_line, agent_speed[:frame, 1] / agent_count[:frame, 1], color='red', label='Животные')
-    ax[1, 0].plot(time_line, agent_speed[:frame, 2] / agent_count[:frame, 2], color='blue', label='Грибы')
+    ax[1, 0].plot(agent_speed[:frame, 0] / agent_count[:frame, 0], color='green', label='Растения')
+    ax[1, 0].plot(agent_speed[:frame, 1] / agent_count[:frame, 1], color='red', label='Животные')
+    ax[1, 0].plot(agent_speed[:frame, 2] / agent_count[:frame, 2], color='blue', label='Грибы')
     ax[1, 0].yaxis.set_data_interval(vmin=0, vmax=0, ignore=False)
     ax[1, 0].legend()
     ax[1, 0].grid(True)
 
     ax[1, 1].set_title('Эволюция агентов (зрение)')
-    ax[1, 1].plot(time_line, agent_sense[:frame, :].sum(1) / agent_count[:frame, :].sum(1), color='black',
+    ax[1, 1].plot(agent_sense[:frame, :].sum(1) / agent_count[:frame, :].sum(1), color='black',
                   label='Всего')
-    ax[1, 1].plot(time_line, agent_sense[:frame, 0] / agent_count[:frame, 0], color='green', label='Растения')
-    ax[1, 1].plot(time_line, agent_sense[:frame, 1] / agent_count[:frame, 1], color='red', label='Животные')
-    ax[1, 1].plot(time_line, agent_sense[:frame, 2] / agent_count[:frame, 2], color='blue', label='Грибы')
+    ax[1, 1].plot(agent_sense[:frame, 0] / agent_count[:frame, 0], color='green', label='Растения')
+    ax[1, 1].plot(agent_sense[:frame, 1] / agent_count[:frame, 1], color='red', label='Животные')
+    ax[1, 1].plot(agent_sense[:frame, 2] / agent_count[:frame, 2], color='blue', label='Грибы')
     ax[1, 1].yaxis.set_data_interval(vmin=0, vmax=0, ignore=False)
     ax[1, 1].legend()
     ax[1, 1].grid(True)
 
     ax[1, 2].set_title('Эволюция агентов (дальность семени)')
-    ax[1, 2].plot(time_line, agent_dist[:frame, :].sum(1) / agent_count[:frame, :].sum(1), color='black',
+    ax[1, 2].plot(agent_dist[:frame, :].sum(1) / agent_count[:frame, :].sum(1), color='black',
                   label='Всего')
-    ax[1, 2].plot(time_line, agent_dist[:frame, 0] / agent_count[:frame, 0], color='green', label='Растения')
-    ax[1, 2].plot(time_line, agent_dist[:frame, 1] / agent_count[:frame, 1], color='red', label='Животные')
-    ax[1, 2].plot(time_line, agent_dist[:frame, 2] / agent_count[:frame, 2], color='blue', label='Грибы')
+    ax[1, 2].plot(agent_dist[:frame, 0] / agent_count[:frame, 0], color='green', label='Растения')
+    ax[1, 2].plot(agent_dist[:frame, 1] / agent_count[:frame, 1], color='red', label='Животные')
+    ax[1, 2].plot(agent_dist[:frame, 2] / agent_count[:frame, 2], color='blue', label='Грибы')
     ax[1, 2].yaxis.set_data_interval(vmin=0, vmax=0, ignore=False)
     ax[1, 2].legend()
     ax[1, 2].grid(True)
@@ -169,6 +169,17 @@ def draw(frame, agent_count, field_energy, agent_energy, agent_speed, agent_sens
         ax[2, 1].yaxis.set_view_interval(vmin=-18, vmax=1, ignore=True)
 
     redraw_balance(frame - 1)
+
+
+    ax[2, 2].set_title('Изменения численности агентов')
+    ax[2, 2].plot(savgol_filter(np.diff(agent_count[:frame, :].sum(1) / 3, axis=0), 200, 2, mode='nearest'), color='black', label='Всего')
+    ax[2, 2].plot(savgol_filter(np.diff(agent_count[:frame, 0], axis=0), 200, 2, mode='nearest'), color='green', label='Растения')
+    ax[2, 2].plot(savgol_filter(np.diff(agent_count[:frame, 1], axis=0), 200, 2, mode='nearest'), color='red', label='Животные')
+    ax[2, 2].plot(savgol_filter(np.diff(agent_count[:frame, 2], axis=0), 200, 2, mode='nearest'), color='blue', label='Грибы')
+    # ax[2, 2].yaxis.set_data_interval(vmin=-5, vmax=-5, ignore=False)
+    ax[2, 2].secondary_yaxis('right', functions=(lambda x: 3 * x, lambda x: x / 3))
+    ax[2, 2].legend()
+    ax[2, 2].grid(True)
 
     fig.canvas.mpl_connect('key_press_event', handle)
     fig.canvas.mpl_connect('button_press_event', lambda e: on_click(e, redraw_balance))

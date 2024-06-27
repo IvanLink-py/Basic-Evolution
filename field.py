@@ -214,14 +214,17 @@ def update_agent(agent, agent_types, agent_energy, agent_speed, agent_timer,
             agent_energy[agent] += eated
 
     if agent_energy[agent] < AGENT_LIFE_COST[type_index]:
-        kill(agent, agent_types)
+        kill(agent, agent_types, field, agent_energy, agent_pos, cal_index, type_index)
         return
-    #
-    if agent_timer[agent] > AGENT_DUPLE_TIMER[type_index]:
+
+    if agent_timer[agent] > AGENT_LIFE_TIME[type_index]:
+        kill(agent, agent_types, field, agent_energy, agent_pos, cal_index, type_index)
+        return
+
+    if agent_timer[agent] % AGENT_DUPLE_TIMER[type_index] == 0:
         if agent_energy[agent] > AGENT_DUPLE_COST[type_index]:
             duple(agent, agent_types, agent_energy, agent_speed, agent_timer,
                   agent_pos, agent_direction, agent_impulse, agent_sense, agent_duple_distance)
-        agent_timer[agent] = 0
 
     agent_impulse[agent][0] += np.cos(agent_direction[agent]) * agent_speed[agent] * AGENT_SPEED_MODIFIER[type_index]
     agent_impulse[agent][1] += -np.sin(agent_direction[agent]) * agent_speed[agent] * AGENT_SPEED_MODIFIER[type_index]
@@ -316,13 +319,15 @@ def duple(parent, agent_types, agent_energy, agent_speed, agent_timer,
             agent_direction[i] = agent_direction[parent]
             agent_impulse[i] = agent_impulse[parent]
             agent_sense[i] = max(0, agent_sense[parent] + (random.random() - 0.5) * AGENT_MUTATION)
-            agent_duple_distance[i] = max(0, agent_duple_distance[parent] + (random.random() - 0.5) * AGENT_DUPLE_DISTANCE_MUTATION)
+            agent_duple_distance[i] = max(0, agent_duple_distance[parent] + (
+                        random.random() - 0.5) * AGENT_DUPLE_DISTANCE_MUTATION)
             return
 
 
 @numba.njit()
-def kill(agent, agent_types):
+def kill(agent, agent_types, field, agent_energy, agent_pos, cal_index, type_index):
     agent_types[agent] = -1
+    pos2cell(field, agent_pos[agent])[cal_index] += agent_energy[agent] * AGENT_PRODUCING[type_index]
 
 
 def render(screen):
