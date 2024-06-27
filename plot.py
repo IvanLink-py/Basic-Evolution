@@ -15,7 +15,7 @@ def on_click(event, func):
         plt.draw()
 
 
-def draw(frame, agent_count, field_energy, agent_energy, agent_speed, agent_sense):
+def draw(frame, agent_count, field_energy, agent_energy, agent_speed, agent_sense, agent_dist):
     fig, ax = plt.subplots(3, 4, figsize=(18, 9), sharex='row')
     time_line = np.arange(frame)
 
@@ -84,6 +84,16 @@ def draw(frame, agent_count, field_energy, agent_energy, agent_speed, agent_sens
     ax[1, 1].yaxis.set_data_interval(vmin=0, vmax=0, ignore=False)
     ax[1, 1].legend()
     ax[1, 1].grid(True)
+
+    ax[1, 2].set_title('Эволюция агентов (дальность семени)')
+    ax[1, 2].plot(time_line, agent_dist[:frame, :].sum(1) / agent_count[:frame, :].sum(1), color='black',
+                  label='Всего')
+    ax[1, 2].plot(time_line, agent_dist[:frame, 0] / agent_count[:frame, 0], color='green', label='Растения')
+    ax[1, 2].plot(time_line, agent_dist[:frame, 1] / agent_count[:frame, 1], color='red', label='Животные')
+    ax[1, 2].plot(time_line, agent_dist[:frame, 2] / agent_count[:frame, 2], color='blue', label='Грибы')
+    ax[1, 2].yaxis.set_data_interval(vmin=0, vmax=0, ignore=False)
+    ax[1, 2].legend()
+    ax[1, 2].grid(True)
 
     ax[2, 0].set_title('Параметры системы')
     ax[2, 0].get_yaxis().set_visible(False)

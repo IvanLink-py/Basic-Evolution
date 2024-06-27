@@ -16,12 +16,14 @@ AGENT_POS = np.zeros((AGENT_LIMIT, 2), dtype=np.float32)  # Положение �
 AGENT_DIRECTION = np.zeros(AGENT_LIMIT, dtype=np.float32)  # Поворот агента в радианах
 AGENT_IMPULSE = np.zeros((AGENT_LIMIT, 2), dtype=np.float32)  # Текущая скорость агента
 AGENT_SENSE = np.zeros(AGENT_LIMIT, dtype=np.float32)  # Чувствительность агента к еде
+AGENT_DUPLE_DISTANCE = np.zeros(AGENT_LIMIT, dtype=np.float32)  # Растояние от родителя на котором появиться клон
 
 HISTORY_AGENT_COUNT = np.zeros((HISTORY_CHUNK_SIZE, 3), dtype=np.int32)
 HISTORY_FIELD_ENERGY = np.zeros((HISTORY_CHUNK_SIZE, 3), dtype=np.float32)
 HISTORY_AGENT_ENERGY = np.zeros((HISTORY_CHUNK_SIZE, 3), dtype=np.float32)
 HISTORY_AGENT_SPEED = np.zeros((HISTORY_CHUNK_SIZE, 3), dtype=np.float32)
 HISTORY_AGENT_SENSE = np.zeros((HISTORY_CHUNK_SIZE, 3), dtype=np.float32)
+HISTORY_AGENT_DUPLE_DISTANCE = np.zeros((HISTORY_CHUNK_SIZE, 3), dtype=np.float32)
 
 pygame.font.init()
 FONT_1 = pygame.font.SysFont('arial', 10)
@@ -41,27 +43,27 @@ def init():
     # spawn_agent(1, 1, 50, 1, 0, (60, 20), 0, (0.01, 0), 10)
 
     for i in range(100):
-        spawn_agent(types=0, energy=50, speed=0.5, timer=random.randint(0, AGENT_DUPLE_TIMER[0]),
+        spawn_agent(types=0, energy=50, speed=0.0, timer=random.randint(0, AGENT_DUPLE_TIMER[0]),
                     pos=(random.random() * FIELD_SIZE[0], random.random() * FIELD_SIZE[1]),
                     direction=random.random() * np.pi * 2,
-                    impulse=(0, 0), sense=0)
+                    impulse=(0, 0), sense=0, duple_distance=25)
 
     for i in range(100):
         spawn_agent(types=1, energy=50, speed=0.5, timer=random.randint(0, AGENT_DUPLE_TIMER[1]),
                     pos=(random.random() * FIELD_SIZE[0], random.random() * FIELD_SIZE[1]),
                     direction=random.random() * np.pi * 2,
-                    impulse=(0, 0), sense=0)
+                    impulse=(0, 0), sense=0, duple_distance=0)
 
     for i in range(100):
         spawn_agent(types=2, energy=50, speed=0.5, timer=random.randint(0, AGENT_DUPLE_TIMER[2]),
                     pos=(random.random() * FIELD_SIZE[0], random.random() * FIELD_SIZE[1]),
                     direction=random.random() * np.pi * 2,
-                    impulse=(0, 0), sense=0)
+                    impulse=(0, 0), sense=0, duple_distance=0)
 
 
 def spawn_agent(i=-1, types=None, energy=None, speed=None, timer=None, pos=None, direction=None, impulse=None,
-                sense=None):
-    global AGENT_TYPES, AGENT_ENERGY, AGENT_SPEED, AGENT_TIMER, AGENT_POS, AGENT_DIRECTION, AGENT_IMPULSE, AGENT_SENSE
+                sense=None, duple_distance=None):
+    global AGENT_TYPES, AGENT_ENERGY, AGENT_SPEED, AGENT_TIMER, AGENT_POS, AGENT_DIRECTION, AGENT_IMPULSE, AGENT_SENSE, AGENT_DUPLE_DISTANCE
 
     if i == -1:
         for j in range(AGENT_LIMIT):
@@ -77,6 +79,7 @@ def spawn_agent(i=-1, types=None, energy=None, speed=None, timer=None, pos=None,
     AGENT_TIMER[i] = 0 if timer is None else timer
     AGENT_POS[i] = (0, 0) if pos is None else pos
     AGENT_DIRECTION[i] = 0 if direction is None else direction
+    AGENT_DUPLE_DISTANCE[i] = 0 if duple_distance is None else duple_distance
     AGENT_IMPULSE[i] = (0, 0) if impulse is None else impulse
     AGENT_SENSE[i] = 1 if sense is None else sense
 
@@ -127,7 +130,7 @@ def update():
                   AGENT_SENSE, FIELD, AGENT_LIMIT, AGENT_SPEED_MODIFIER, FIELD_CELL_SIZE, AGENT_SENSE_RADIUS,
                   AGENT_SENSE_MODIFIER, FIELD_RESOLUTION, AGENT_MAX_ENERGY,
                   AGENT_CONSUMING, AGENT_LIFE_COST, AGENT_DUPLE_TIMER, AGENT_DUPLE_COST, AGENT_PRODUCING,
-                  AGENT_LIFE_COST_PER_SENSE, AGENT_LIFE_COST_PER_SPEED, FIELD_REGEN)
+                  AGENT_LIFE_COST_PER_SENSE, AGENT_LIFE_COST_PER_SPEED, FIELD_REGEN, AGENT_DUPLE_DISTANCE)
 
     if FRAME % HISTORY_CHUNK_SIZE == HISTORY_CHUNK_SIZE - 1:
         HISTORY_AGENT_COUNT.resize((HISTORY_AGENT_COUNT.shape[0] + HISTORY_CHUNK_SIZE, 3), refcheck=False)
@@ -135,10 +138,12 @@ def update():
         HISTORY_AGENT_ENERGY.resize((HISTORY_AGENT_ENERGY.shape[0] + HISTORY_CHUNK_SIZE, 3), refcheck=False)
         HISTORY_AGENT_SPEED.resize((HISTORY_AGENT_SPEED.shape[0] + HISTORY_CHUNK_SIZE, 3), refcheck=False)
         HISTORY_AGENT_SENSE.resize((HISTORY_AGENT_SENSE.shape[0] + HISTORY_CHUNK_SIZE, 3), refcheck=False)
+        HISTORY_AGENT_DUPLE_DISTANCE.resize((HISTORY_AGENT_DUPLE_DISTANCE.shape[0] + HISTORY_CHUNK_SIZE, 3),
+                                            refcheck=False)
 
     collect_history(FRAME, FIELD, HISTORY_CHUNK_SIZE, HISTORY_AGENT_COUNT, AGENT_TYPES, AGENT_ENERGY, AGENT_LIMIT,
                     HISTORY_FIELD_ENERGY, HISTORY_AGENT_ENERGY, HISTORY_AGENT_SPEED, HISTORY_AGENT_SENSE, AGENT_SENSE,
-                    AGENT_SPEED)
+                    AGENT_SPEED, HISTORY_AGENT_DUPLE_DISTANCE, AGENT_DUPLE_DISTANCE)
     HISTORY_FIELD_ENERGY[FRAME] = FIELD.sum((0, 1))
 
     FRAME += 1
@@ -147,23 +152,26 @@ def update():
 @numba.njit()
 def collect_history(frame, field, history_chunk_size, history_agent_count, agent_types, agent_energy, agent_limit,
                     history_field_energy, history_agent_energy, history_agent_speed, history_agent_sense, agent_sense,
-                    agent_speed):
+                    agent_speed, history_duple_distance, agent_duple_distance):
     for agent in range(agent_limit):
         if agent_types[agent] == 0:
             history_agent_count[frame, 0] += 1
             history_agent_energy[frame, 0] += agent_energy[agent]
             history_agent_speed[frame, 0] += agent_speed[agent]
             history_agent_sense[frame, 0] += agent_sense[agent]
+            history_duple_distance[frame, 0] += agent_duple_distance[agent]
         elif agent_types[agent] == 1:
             history_agent_count[frame, 1] += 1
             history_agent_energy[frame, 1] += agent_energy[agent]
             history_agent_speed[frame, 1] += agent_speed[agent]
             history_agent_sense[frame, 1] += agent_sense[agent]
+            history_duple_distance[frame, 1] += agent_duple_distance[agent]
         elif agent_types[agent] == 2:
             history_agent_count[frame, 2] += 1
             history_agent_energy[frame, 2] += agent_energy[agent]
             history_agent_speed[frame, 2] += agent_speed[agent]
             history_agent_sense[frame, 2] += agent_sense[agent]
+            history_duple_distance[frame, 2] += agent_duple_distance[agent]
 
 
 @numba.njit()
@@ -171,13 +179,13 @@ def update_agents(agent_types, agent_energy, agent_speed, agent_timer,
                   agent_pos, agent_direction, agent_impulse, agent_sense, field, agent_limit, agent_speed_modifier,
                   field_cell_size, agent_sense_radius, agent_sense_modifier, field_resolution, agent_max_energy,
                   agent_consuming, agent_life_cost, agent_duple_timer, agent_duple_cost, agent_producing,
-                  agent_life_cost_per_sense, agent_life_cost_per_speed, field_regen):
+                  agent_life_cost_per_sense, agent_life_cost_per_speed, field_regen, agent_duple_distance):
     for agent in range(agent_limit):
         update_agent(agent, agent_types, agent_energy, agent_speed, agent_timer,
                      agent_pos, agent_direction, agent_impulse, agent_sense, field, agent_limit, agent_speed_modifier,
                      field_cell_size, agent_sense_radius, agent_sense_modifier, field_resolution, agent_max_energy,
                      agent_consuming, agent_life_cost, agent_duple_timer, agent_duple_cost, agent_producing,
-                     agent_life_cost_per_sense, agent_life_cost_per_speed)
+                     agent_life_cost_per_sense, agent_life_cost_per_speed, agent_duple_distance)
 
     agent_pos += agent_impulse
     agent_impulse *= FIELD_FRICTION
@@ -193,7 +201,7 @@ def update_agent(agent, agent_types, agent_energy, agent_speed, agent_timer,
                  agent_pos, agent_direction, agent_impulse, agent_sense, field, agent_limit, agent_speed_modifier,
                  field_cell_size, agent_sense_radius, agent_sense_modifier, field_resolution, agent_max_energy,
                  agent_consuming, agent_life_cost, agent_duple_timer, agent_duple_cost, agent_producing,
-                 agent_life_cost_per_sense, agent_life_cost_per_speed):
+                 agent_life_cost_per_sense, agent_life_cost_per_speed, agent_duple_distance):
     if agent_types[agent] == -1:
         return
 
@@ -224,7 +232,7 @@ def update_agent(agent, agent_types, agent_energy, agent_speed, agent_timer,
     if agent_timer[agent] > agent_duple_timer[type_index]:
         if agent_energy[agent] > agent_duple_cost[type_index]:
             duple(agent, agent_types, agent_energy, agent_speed, agent_timer,
-                  agent_pos, agent_direction, agent_impulse, agent_sense, agent_limit)
+                  agent_pos, agent_direction, agent_impulse, agent_sense, agent_limit, agent_duple_distance)
         agent_timer[agent] = 0
 
     agent_impulse[agent][0] += np.cos(agent_direction[agent]) * agent_speed[agent] * agent_speed_modifier[type_index]
@@ -309,7 +317,7 @@ def sense(agent, agent_pos, agent_direction, agent_impulse, agent_sense, field, 
 
 @numba.njit()
 def duple(parent, agent_types, agent_energy, agent_speed, agent_timer,
-          agent_pos, agent_direction, agent_impulse, agent_sense, agent_limit):
+          agent_pos, agent_direction, agent_impulse, agent_sense, agent_limit, agent_duple_distance):
     for i in range(agent_limit):
         if agent_types[i] == -1:
             agent_energy[parent] /= 2
@@ -318,10 +326,12 @@ def duple(parent, agent_types, agent_energy, agent_speed, agent_timer,
             agent_energy[i] = agent_energy[parent]
             agent_speed[i] = max(0, agent_speed[parent] + (random.random() - 0.5) * 0.5)
             agent_timer[i] = 0
-            agent_pos[i] = agent_pos[parent]
+            agent_pos[i] = agent_pos[parent] + np.array(
+                [np.cos(agent_direction[parent]), -np.sin(agent_direction[parent])]) * agent_duple_distance[parent]
             agent_direction[i] = agent_direction[parent]
             agent_impulse[i] = agent_impulse[parent]
             agent_sense[i] = max(0, agent_sense[parent] + (random.random() - 0.5) * 0.5)
+            agent_duple_distance[i] = max(0, agent_duple_distance[parent] + (random.random() - 0.5) * 2)
             return
 
 
@@ -393,4 +403,4 @@ def render_ui(screen):
 
 def plot_history():
     plot.draw(FRAME, HISTORY_AGENT_COUNT, HISTORY_FIELD_ENERGY, HISTORY_AGENT_ENERGY, HISTORY_AGENT_SPEED,
-              HISTORY_AGENT_SENSE)
+              HISTORY_AGENT_SENSE, HISTORY_AGENT_DUPLE_DISTANCE)
