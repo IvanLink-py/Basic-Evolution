@@ -46,7 +46,7 @@ def init():
         spawn_agent(types=0, energy=50, speed=0.0, timer=random.randint(0, AGENT_DUPLE_TIMER[0]),
                     pos=(random.random() * FIELD_SIZE[0], random.random() * FIELD_SIZE[1]),
                     direction=random.random() * np.pi * 2,
-                    impulse=(0, 0), sense=0, duple_distance=15)
+                    impulse=(0, 0), sense=0, duple_distance=4)
 
     for i in range(100):
         spawn_agent(types=1, energy=50, speed=0.5, timer=random.randint(0, AGENT_DUPLE_TIMER[1]),
@@ -221,7 +221,7 @@ def update_agent(agent, agent_types, agent_energy, agent_speed, agent_timer,
         kill(agent, agent_types, field, agent_energy, agent_pos, cal_index, type_index)
         return
 
-    if agent_timer[agent] % AGENT_DUPLE_TIMER[type_index] == 0:
+    if agent_timer[agent] % AGENT_DUPLE_TIMER[type_index] == AGENT_DUPLE_TIMER[type_index] - 1:
         if agent_energy[agent] > AGENT_DUPLE_COST[type_index]:
             duple(agent, agent_types, agent_energy, agent_speed, agent_timer,
                   agent_pos, agent_direction, agent_impulse, agent_sense, agent_duple_distance)

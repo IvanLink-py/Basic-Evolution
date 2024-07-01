@@ -95,6 +95,20 @@ def draw(frame, agent_count, field_energy, agent_energy, agent_speed, agent_sens
     ax[1, 2].legend()
     ax[1, 2].grid(True)
 
+    ax[1, 3].set_title('Изменения численности агентов')
+    ax[1, 3].plot(savgol_filter(np.diff(agent_count[:frame, :].sum(1), axis=0), frame // 50, 0, mode='nearest'),
+                  color='black', label='Всего')
+    ax[1, 3].plot(savgol_filter(np.diff(agent_count[:frame, 0], axis=0), frame // 50, 0, mode='nearest'), color='green',
+                  label='Растения')
+    ax[1, 3].plot(savgol_filter(np.diff(agent_count[:frame, 1], axis=0), frame // 50, 0, mode='nearest'), color='red',
+                  label='Животные')
+    ax[1, 3].plot(savgol_filter(np.diff(agent_count[:frame, 2], axis=0), frame // 50, 0, mode='nearest'), color='blue',
+                  label='Грибы')
+    # ax[1, 3].yaxis.set_data_interval(vmin=-5, vmax=-5, ignore=False)
+    ax[1, 3].secondary_yaxis('right', functions=(lambda x: 3 * x, lambda x: x / 3))
+    ax[1, 3].legend()
+    ax[1, 3].grid(True)
+
     ax[2, 0].set_title('Параметры системы')
     ax[2, 0].get_yaxis().set_visible(False)
     ax[2, 0].get_xaxis().set_visible(False)
@@ -169,17 +183,6 @@ def draw(frame, agent_count, field_energy, agent_energy, agent_speed, agent_sens
         ax[2, 1].yaxis.set_view_interval(vmin=-18, vmax=1, ignore=True)
 
     redraw_balance(frame - 1)
-
-
-    ax[2, 2].set_title('Изменения численности агентов')
-    ax[2, 2].plot(savgol_filter(np.diff(agent_count[:frame, :].sum(1) / 3, axis=0), 200, 2, mode='nearest'), color='black', label='Всего')
-    ax[2, 2].plot(savgol_filter(np.diff(agent_count[:frame, 0], axis=0), 200, 2, mode='nearest'), color='green', label='Растения')
-    ax[2, 2].plot(savgol_filter(np.diff(agent_count[:frame, 1], axis=0), 200, 2, mode='nearest'), color='red', label='Животные')
-    ax[2, 2].plot(savgol_filter(np.diff(agent_count[:frame, 2], axis=0), 200, 2, mode='nearest'), color='blue', label='Грибы')
-    # ax[2, 2].yaxis.set_data_interval(vmin=-5, vmax=-5, ignore=False)
-    ax[2, 2].secondary_yaxis('right', functions=(lambda x: 3 * x, lambda x: x / 3))
-    ax[2, 2].legend()
-    ax[2, 2].grid(True)
 
     fig.canvas.mpl_connect('key_press_event', handle)
     fig.canvas.mpl_connect('button_press_event', lambda e: on_click(e, redraw_balance))
